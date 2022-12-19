@@ -1,15 +1,105 @@
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+"use strict";
+
+let canvas;
+let ctx;
 let mouse_down = false;
 let base_unit = window.devicePixelRatio; // Screen pixel in canvas coordinates.
-const rows = 100;
-const cols = 100;
+let last_update = null;
+let ups = 0;
+let fps = 0;
+let draw_last_update = null;
+let step_count = 0;
+const rows = 200;
+const cols = 200;
+const offset = 20;
 
 let grid = [];
 for (let i = 0; i < rows; i++) {
   grid[i] = [];
   for (let j = 0; j < cols; j++) {
     grid[i][j] = 0;
+  }
+}
+let neighbors = [];
+for (let i = 0; i < rows; i++) {
+  neighbors[i] = [];
+}
+
+window.onload = init;
+
+function init() {
+  canvas = document.getElementById("canvas");
+  ctx = canvas.getContext("2d"); 
+
+  changeViewport();
+  initView();
+  window.requestAnimationFrame(gameLoop);
+
+  fetch("patterns/greyship.rle")
+  .then((response) => {
+    if (!response.ok) {
+      console.log(`HTTP error: ${response.status}`);
+    }
+    return response.text();
+  })
+  .then((text) => loadRle(text));
+}
+
+function gameLoop(time_stamp){
+  clear_view();
+  draw_fps(time_stamp);
+  draw();
+
+  // Keep requesting new frames
+  window.requestAnimationFrame(gameLoop);
+}
+
+function clear_view() {
+  const upper_left = transformedPoint(0, 0);
+  const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
+
+  // Clear the entire canvas
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+}
+
+function draw_fps(time_stamp) {
+  ctx.fillText(step_count, 10, 0);
+  ctx.fillText(ups.toFixed(0), 10, 10);
+
+  const draw_time_diff = time_stamp - draw_last_update;
+  draw_last_update = time_stamp;
+  fps = 0.9*fps + 0.1*1000/draw_time_diff;
+  ctx.fillText(fps.toFixed(0), 10, 20);
+}
+
+function draw() {
+  const upper_left = transformedPoint(0, 0);
+  const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 0.01;
+  for (let i = Math.floor(upper_left.x); i <= Math.ceil(lower_right.x); i++) {
+    ctx.beginPath();
+    ctx.moveTo(i, upper_left.y);
+    ctx.lineTo(i, lower_right.y);
+    ctx.stroke();
+  }
+  for (let j = Math.floor(upper_left.y); j <= Math.ceil(lower_right.y); j++) {
+    ctx.beginPath();
+    ctx.moveTo(upper_left.x, j);
+    ctx.lineTo(lower_right.x, j);
+    ctx.stroke();
+  }
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      if (grid[i][j] === 1) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(i, j, 1, 1);
+      }
+    }
   }
 }
 
@@ -19,7 +109,7 @@ function transformedPoint(x, y) {
 }
 
 function initView() {
-  const cells_to_show = 50;
+  const cells_to_show = 100;
   const target_width = cells_to_show;
   const scale = target_width / canvas.width;
   base_unit *= scale;
@@ -43,69 +133,36 @@ function changeViewport() {
   ctx.setTransform(transform);
 }
 
-function draw() {
-  const upper_left = transformedPoint(0, 0);
-  const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
-
-  // Clear the entire canvas
-  ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.restore();
-
-  ctx.fillStyle = "#000";
-  ctx.lineWidth = 0.01;
-  for (let i = Math.floor(upper_left.x); i <= Math.ceil(lower_right.x); i++) {
-    ctx.beginPath();
-    ctx.moveTo(i, upper_left.y);
-    ctx.lineTo(i, lower_right.y);
-    ctx.stroke();
-  }
-  for (let j = Math.floor(upper_left.y); j <= Math.ceil(lower_right.y); j++) {
-    ctx.beginPath();
-    ctx.moveTo(upper_left.x, j);
-    ctx.lineTo(lower_right.x, j);
-    ctx.stroke();
-  }
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      if (grid[i][j] === 1) {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(i, j, 1, 1);
-      }
-    }
-  }
-}
-
 function step() {
-  // Create a copy of the grid
-  let newGrid = grid.map(row => row.slice());
+  step_count++;
 
   // Compute the number of alive neighbors for each cell
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
-      let neighbors = 0;
-      for (let ii = -1; ii <= 1; ii++) {
-        for (let jj = -1; jj <= 1; jj++) {
-          if (ii === 0 && jj === 0) continue;
-          const row = i + ii;
-          const col = j + jj;
-          if (row < 0 || row >= rows || col < 0 || col > cols) continue;
-          if (grid[row][col] === 1) neighbors++;
+      neighbors[i][j] = 0;
+      for (let row = Math.max(0, i - 1); row <= Math.min(rows - 1, i + 1); row++) {
+        for (let col = Math.max(0, j - 1); col <= Math.min(cols - 1, j + 1); col++) {
+          if (row === i && col === j) continue;
+          if (grid[row][col] === 1) neighbors[i][j]++;
         }
       }
-
-      // Apply the Game of Life rules
+    }
+  }
+  // Apply the Game of Life rules
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
       if (grid[i][j] === 1) {
-        if (neighbors < 2 || neighbors > 3) newGrid[i][j] = 0;
+        if (neighbors[i][j] < 2 || neighbors[i][j] > 3) grid[i][j] = 0;
       } else {
-        if (neighbors === 3) newGrid[i][j] = 1;
+        if (neighbors[i][j] === 3) grid[i][j] = 1;
       }
     }
   }
 
-  // Update the grid
-  grid = newGrid;
+  const now = performance.now();
+  const time_diff = now - last_update;
+  last_update = now;
+  ups = 0.9*ups + 0.1*1000/time_diff;
 }
 
 var timer = {
@@ -135,20 +192,14 @@ var timer = {
   }
 };
 
-changeViewport();
-initView();
-draw();
-
 onresize = (event) => {
   changeViewport();
-  draw();
 };
 onmousemove = (event) => {
   if (mouse_down === false) return;
   const offset_x = event.movementX * base_unit;
   const offset_y = event.movementY * base_unit;
   ctx.translate(offset_x, offset_y);
-  draw();
 }
 onmousedown = (event) => {
   mouse_down = { x: event.x, y: event.y };
@@ -160,7 +211,6 @@ onmouseup = (event) => {
     const y = Math.floor(pt.y);
     if (x >= 0 && x < rows && y >= 0 && y < cols) {
       grid[x][y] = 1 - grid[x][y];
-      draw();
     }
   }
   mouse_down = false;
@@ -172,14 +222,13 @@ onwheel = (event) => {
   ctx.translate(pt.x, pt.y);
   ctx.scale(1 / scale, 1 / scale);
   ctx.translate(-pt.x, -pt.y);
-  draw();
 }
 onkeydown = (event) => {
   if (event.key === ' ') {
     if (timer.running) {
       timer.stop();
     } else {
-      timer.start(function () { step(); draw(); });
+      timer.start(function () { step(); });
     }
   }
   else if (event.key === 'x') {
@@ -189,14 +238,13 @@ onkeydown = (event) => {
   else if (event.key === 'l') {
     // faster
     timer.set_interval(timer.delay / 1.3);
+    console.log("New delay = ", timer.delay, " ups = ", 1000/timer.delay);
   }
   else if (event.key === '.') {
     step();
-    draw();
   }
   else if (event.key === '0') {
     changeViewport();
-    draw();
   }
 }
 
@@ -229,40 +277,29 @@ function loadRle(text) {
     return;
   }
   long_line = long_line.split("!")[0];
-  const rows = long_line.split("$");
-  for (line_idx = 0; line_idx < rows.length; line_idx++) {
-    const line = rows[line_idx];
-    let num = "";
-    let j = 0;
-    for (const i in line) {
-      if ('0' <= line[i] && line[i] <= '9') {
-        num += line[i];
-      } else if (line[i] == 'o'){
-        count = parseInt(num) || 1;
-        for (let i = 0; i < count; i++) { 
-          grid[2 + j++][2 + line_idx] = 1;
-        }
-        num = "";
-      } else if (line[i] == 'b'){
-        count = parseInt(num) || 1;
-        for (let i = 0; i < count; i++) { 
-          j++; // Nothing else do to for dead cells
-        }
-        num = "";
+  let line_idx = 0;
+  let num = "";
+  let x = 0;
+  for (let ch of long_line) {
+    if ('0' <= ch && ch <= '9') {
+      num += ch;
+    } else if (ch == 'o') {
+      const count = parseInt(num) || 1;
+      for (let i = 0; i < count; i++) {
+        grid[offset + x++][offset + line_idx] = 1;
       }
-      else {
-        console.error(`Unexpected character ${line[i]}`);
-      }
+      num = ""
+    } else if (ch == 'b') {
+      const count = parseInt(num) || 1;
+      x += count; // Nothing else do to for dead cells, already empty.
+      num = "";
+    } else if (ch == '$') {
+      const count = parseInt(num) || 1;
+      num = "";
+      x = 0;
+      line_idx += count;
+    } else {
+      console.error(`Unexpected character ${ch}`);
     }
   }
-  draw();
 }
-
-fetch("patterns/gosperglidergun.rle")
-  .then((response) => {
-    if (!response.ok) {
-      console.log(`HTTP error: ${response.status}`);
-    }
-    return response.text();
-  })
-  .then((text) => loadRle(text));

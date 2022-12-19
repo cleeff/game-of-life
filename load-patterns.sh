@@ -2,4 +2,6 @@
 set -euo pipefail
 
 cd patterns
-wget https://conwaylife.com/patterns/gosperglidergun.rle
+options="--no-clobber"
+wget ${options} https://conwaylife.com/patterns/gosperglidergun.rle
+wget ${options} https://conwaylife.com/patterns/greyship.rle
