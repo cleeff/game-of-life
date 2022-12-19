@@ -9,21 +9,12 @@ let ups = 0;
 let fps = 0;
 let draw_last_update = null;
 let step_count = 0;
-const rows = 200;
-const cols = 200;
+const rows = 2200;
+const cols = 2200;
 const offset = 20;
 
-let grid = [];
-for (let i = 0; i < rows; i++) {
-  grid[i] = [];
-  for (let j = 0; j < cols; j++) {
-    grid[i][j] = 0;
-  }
-}
-let neighbors = [];
-for (let i = 0; i < rows; i++) {
-  neighbors[i] = [];
-}
+let grid = Array(rows).fill(0).map(x => Array(cols).fill(false));
+let new_grid = Array(rows).fill(0).map(x => Array(cols).fill(false));
 
 window.onload = init;
 
@@ -93,9 +84,13 @@ function draw() {
     ctx.lineTo(lower_right.x, j);
     ctx.stroke();
   }
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      if (grid[i][j] === 1) {
+  const min_i = Math.max(0, Math.floor(upper_left.x));
+  const max_i = Math.min(rows, Math.ceil(lower_right.x));
+  const min_j = Math.max(0, Math.floor(upper_left.y));
+  const max_j = Math.min(cols, Math.ceil(lower_right.y));
+  for (let i = min_i; i < max_i; i++) {
+    for (let j = min_j; j < max_j; j++) {
+      if (grid[i][j]) {
         ctx.fillStyle = 'white';
         ctx.fillRect(i, j, 1, 1);
       }
@@ -139,25 +134,21 @@ function step() {
   // Compute the number of alive neighbors for each cell
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
-      neighbors[i][j] = 0;
+      let neighbors = 0;
       for (let row = Math.max(0, i - 1); row <= Math.min(rows - 1, i + 1); row++) {
         for (let col = Math.max(0, j - 1); col <= Math.min(cols - 1, j + 1); col++) {
           if (row === i && col === j) continue;
-          if (grid[row][col] === 1) neighbors[i][j]++;
+          if (grid[row][col]) neighbors++;
         }
       }
-    }
-  }
-  // Apply the Game of Life rules
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      if (grid[i][j] === 1) {
-        if (neighbors[i][j] < 2 || neighbors[i][j] > 3) grid[i][j] = 0;
+      if (grid[i][j]) {
+        new_grid[i][j] = neighbors >= 2 && neighbors <= 3;
       } else {
-        if (neighbors[i][j] === 3) grid[i][j] = 1;
+        new_grid[i][j] = neighbors === 3;
       }
     }
   }
+  [grid, new_grid] = [new_grid, grid];
 
   const now = performance.now();
   const time_diff = now - last_update;
@@ -210,7 +201,7 @@ onmouseup = (event) => {
     const x = Math.floor(pt.x);
     const y = Math.floor(pt.y);
     if (x >= 0 && x < rows && y >= 0 && y < cols) {
-      grid[x][y] = 1 - grid[x][y];
+      grid[x][y] = !grid[x][y];
     }
   }
   mouse_down = false;
@@ -238,7 +229,6 @@ onkeydown = (event) => {
   else if (event.key === 'l') {
     // faster
     timer.set_interval(timer.delay / 1.3);
-    console.log("New delay = ", timer.delay, " ups = ", 1000/timer.delay);
   }
   else if (event.key === '.') {
     step();
@@ -260,7 +250,7 @@ function loadRle(text) {
       width = parts[0].split("x = ").pop();
       height = parts[1].split("y = ").pop();
       const rule = parts[2].split("rule = ").pop().trim();
-      if (rule !== "B3/S23") {
+      if (rule.toLowerCase() !== "b3/s23") {
         console.error(`Could not read file: Unknown rule: ${rule}`)
         return;
       }
@@ -286,7 +276,7 @@ function loadRle(text) {
     } else if (ch == 'o') {
       const count = parseInt(num) || 1;
       for (let i = 0; i < count; i++) {
-        grid[offset + x++][offset + line_idx] = 1;
+        grid[offset + x++][offset + line_idx] = true;
       }
       num = ""
     } else if (ch == 'b') {
