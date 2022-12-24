@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+mkdir -p patterns
 cd patterns
 options="--no-clobber"
 wget ${options} https://conwaylife.com/patterns/gosperglidergun.rle
