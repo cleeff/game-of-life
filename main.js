@@ -20,23 +20,19 @@ window.onload = init;
 
 function init() {
   canvas = document.getElementById("canvas");
-  ctx = canvas.getContext("2d"); 
+  ctx = canvas.getContext("2d");
 
   changeViewport();
   initView();
   window.requestAnimationFrame(gameLoop);
 
-  fetch("patterns/gosperglidergun.rle")
-  .then((response) => {
-    if (!response.ok) {
-      console.log(`HTTP error: ${response.status}`);
-    }
-    return response.text();
-  })
-  .then((text) => loadRle(text));
+  const gosperglidergun = `x = 36, y = 9, rule = B3/S23
+    24bo11b$22bobo11b$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o14b$2o8b
+    o3bob2o4bobo11b$10bo5bo7bo11b$11bo3bo20b$12b2o!`
+  loadRle(gosperglidergun);
 }
 
-function gameLoop(time_stamp){
+function gameLoop(time_stamp) {
   clear_view();
   draw_fps(time_stamp);
   draw();
@@ -63,7 +59,7 @@ function draw_fps(time_stamp) {
 
   const draw_time_diff = time_stamp - draw_last_update;
   draw_last_update = time_stamp;
-  fps = 0.9*fps + 0.1*1000/draw_time_diff;
+  fps = 0.9 * fps + 0.1 * 1000 / draw_time_diff;
   ctx.fillText(fps.toFixed(0), 10, 20);
 }
 
@@ -153,7 +149,7 @@ function step() {
   const now = performance.now();
   const time_diff = now - last_update;
   last_update = now;
-  ups = 0.9*ups + 0.1*1000/time_diff;
+  ups = 0.9 * ups + 0.1 * 1000 / time_diff;
 }
 
 var timer = {
