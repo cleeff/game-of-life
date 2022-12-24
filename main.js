@@ -9,8 +9,8 @@ let ups = 0;
 let fps = 0;
 let draw_last_update = null;
 let step_count = 0;
-const rows = 2200;
-const cols = 2200;
+const rows = 500;
+const cols = 500;
 const offset = 20;
 
 let grid = Array(rows).fill(0).map(x => Array(cols).fill(false));
@@ -26,7 +26,7 @@ function init() {
   initView();
   window.requestAnimationFrame(gameLoop);
 
-  fetch("patterns/greyship.rle")
+  fetch("patterns/gosperglidergun.rle")
   .then((response) => {
     if (!response.ok) {
       console.log(`HTTP error: ${response.status}`);
