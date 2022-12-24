@@ -67,14 +67,17 @@ function draw() {
   const upper_left = transformedPoint(0, 0);
   const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
   ctx.strokeStyle = "#fff";
-  ctx.lineWidth = 0.01;
   for (let i = Math.floor(upper_left.x); i <= Math.ceil(lower_right.x); i++) {
+    if (i % 5 == 0) { ctx.lineWidth = 0.02; }
+    else { ctx.lineWidth = 0.01; }
     ctx.beginPath();
     ctx.moveTo(i, upper_left.y);
     ctx.lineTo(i, lower_right.y);
     ctx.stroke();
   }
   for (let j = Math.floor(upper_left.y); j <= Math.ceil(lower_right.y); j++) {
+    if (j % 5 == 0) { ctx.lineWidth = 0.02; }
+    else { ctx.lineWidth = 0.01; }
     ctx.beginPath();
     ctx.moveTo(upper_left.x, j);
     ctx.lineTo(lower_right.x, j);
