@@ -11,7 +11,7 @@ let draw_last_update = null;
 let step_count = 0;
 const offset = 20;
 let active = new Set();
-let new_active = new Set();
+let changed = new Set();
 
 window.onload = init;
 
@@ -68,13 +68,13 @@ function draw_fps(time_stamp) {
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.font = "80px sans-serif";
+  ctx.font = "80px monospace";
   const draw_time_diff = time_stamp - draw_last_update;
   draw_last_update = time_stamp;
   fps = 0.9 * fps + 0.1 * 1000 / draw_time_diff;
-  const steps = `steps: ${step_count}`.padStart(20);
-  const ups_str = `UPS: ${ups.toFixed(0)}`.padStart(20);
-  const fps_str = `FPS: ${fps.toFixed(0)}`.padStart(20);
+  const steps = `${step_count} steps`.padStart(15);
+  const ups_str = `${ups.toFixed(0)} UPS`.padStart(15);
+  const fps_str = `${fps.toFixed(0)} FPS`.padStart(15);
   const text = steps + ups_str + fps_str;
   ctx.fillText(text, 50, 150);
   ctx.restore();
@@ -145,19 +145,21 @@ function changeViewport() {
 
 function step() {
   step_count++;
-
-  for (const point of active) {
+  let candidates = new Set();
+  for (const point of changed) {
     const parts = point.split(',');
     const x = Number(parts[0]);
     const y = Number(parts[1]);
     for (let dx = -1; dx <= 1; ++dx) {
       for (let dy = -1; dy <= 1; ++dy) {
-        new_active.add(`${x + dx},${y + dy}`);
+        candidates.add(`${x + dx},${y + dy}`);
       }
     }
   }
-
-  for (const point of new_active) {
+  changed.clear();
+  let to_die = [];
+  let to_be_born = [];
+  for (const point of candidates) {
     const parts = point.split(',');
     const x = Number(parts[0]);
     const y = Number(parts[1]);
@@ -170,12 +172,24 @@ function step() {
         }
       }
     }
-    if (!(neighbors === 3 || (active.has(point) && neighbors === 2))) {
-      new_active.delete(point);
+    if (active.has(point)) {
+      if (neighbors !== 2 && neighbors !== 3) {
+        to_die.push(point);
+        changed.add(point);
+      }
+    } else {
+      if (neighbors === 3) {
+        to_be_born.push(point);
+        changed.add(point);
+      }
     }
   }
-  [active, new_active] = [new_active, active];
-  new_active.clear();
+  for (const point of to_die) {
+    active.delete(point);
+  }
+  for (const point of to_be_born) {
+    active.add(point);
+  }
 
   const now = performance.now();
   const time_diff = now - last_update;
@@ -233,6 +247,7 @@ onmouseup = (event) => {
     } else {
       active.add(point);
     }
+    changed.add(point);
   }
   mouse_down = false;
 }
@@ -249,7 +264,7 @@ onkeydown = (event) => {
     if (timer.running) {
       timer.stop();
     } else {
-      timer.start(function () { step(); });
+      timer.start(step);
     }
   }
   else if (event.key === 'x') {
@@ -305,6 +320,7 @@ function loadRle(text) {
       for (let i = 0; i < count; i++) {
         const point = `${offset + x++},${offset + line_idx}`;
         active.add(point);
+        changed.add(point);
       }
       num = ""
     } else if (ch == 'b') {
