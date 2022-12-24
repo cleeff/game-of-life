@@ -24,16 +24,20 @@ function init() {
   window.requestAnimationFrame(gameLoop);
 
   fetch('patterns/f-pentomino.rle')
-  //fetch('patterns/otcametapixel.rle')
-  .then((response) => response.text())
-  .then((text) => loadRle(text))
-  .catch((error) => {
-    console.error(error);
-    const gosperglidergun = `x = 36, y = 9, rule = B3/S23
+    //fetch('patterns/otcametapixel.rle')
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error('Could not load file.');
+      }
+      return response.text();
+    })
+    .then((text) => { loadRle(text) })
+    .catch(() => {
+      const gosperglidergun = `x = 36, y = 9, rule = B3/S23
     24bo11b$22bobo11b$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o14b$2o8b
     o3bob2o4bobo11b$10bo5bo7bo11b$11bo3bo20b$12b2o!`
-    loadRle(gosperglidergun);
-  });
+      loadRle(gosperglidergun);
+    });
 }
 
 function gameLoop(time_stamp) {
@@ -63,7 +67,7 @@ function draw_fps(time_stamp) {
   const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
 
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0); 
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.font = "80px sans-serif";
   const draw_time_diff = time_stamp - draw_last_update;
   draw_last_update = time_stamp;
@@ -98,7 +102,7 @@ function draw() {
     ctx.lineTo(lower_right.x, j);
     ctx.stroke();
   }
-  
+
   // Fill populated cells.
   ctx.fillStyle = 'white';
   for (const point of active) {
