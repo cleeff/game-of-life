@@ -23,7 +23,8 @@ function init() {
   initView();
   window.requestAnimationFrame(gameLoop);
 
-  fetch('patterns/greyship.rle')
+  fetch('patterns/f-pentomino.rle')
+  //fetch('patterns/otcametapixel.rle')
   .then((response) => response.text())
   .then((text) => loadRle(text))
   .catch((error) => {
@@ -57,18 +58,29 @@ function clear_view() {
 }
 
 function draw_fps(time_stamp) {
-  ctx.fillText(step_count, 10, 0);
-  ctx.fillText(ups.toFixed(0), 10, 10);
+  // Draw FPS and other stats on fixed position on screen.
+  const upper_left = transformedPoint(0, 0);
+  const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
 
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); 
+  ctx.font = "80px sans-serif";
   const draw_time_diff = time_stamp - draw_last_update;
   draw_last_update = time_stamp;
   fps = 0.9 * fps + 0.1 * 1000 / draw_time_diff;
-  ctx.fillText(fps.toFixed(0), 10, 20);
+  const steps = `steps: ${step_count}`.padStart(20);
+  const ups_str = `UPS: ${ups.toFixed(0)}`.padStart(20);
+  const fps_str = `FPS: ${fps.toFixed(0)}`.padStart(20);
+  const text = steps + ups_str + fps_str;
+  ctx.fillText(text, 50, 150);
+  ctx.restore();
 }
 
 function draw() {
   const upper_left = transformedPoint(0, 0);
   const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
+
+  // Draw grid lines
   ctx.strokeStyle = "#fff";
   for (let i = Math.floor(upper_left.x); i <= Math.ceil(lower_right.x); i++) {
     if (i % 5 == 0) { ctx.lineWidth = 0.02; }
@@ -86,6 +98,8 @@ function draw() {
     ctx.lineTo(lower_right.x, j);
     ctx.stroke();
   }
+  
+  // Fill populated cells.
   ctx.fillStyle = 'white';
   for (const point of active) {
     const parts = point.split(',');
@@ -244,9 +258,6 @@ onkeydown = (event) => {
   }
   else if (event.key === '.') {
     step();
-  }
-  else if (event.key === '0') {
-    changeViewport();
   }
 }
 

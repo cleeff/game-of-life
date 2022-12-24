@@ -12,3 +12,4 @@
 - Zoom: mouse wheel
 - Start/Stop: `Space`
 - Speed up / slow down: `l` / `x`
+- Single step `.`
