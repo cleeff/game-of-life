@@ -9,12 +9,9 @@ let ups = 0;
 let fps = 0;
 let draw_last_update = null;
 let step_count = 0;
-const rows = 500;
-const cols = 500;
 const offset = 20;
-
-let grid = Array(rows).fill(0).map(x => Array(cols).fill(false));
-let new_grid = Array(rows).fill(0).map(x => Array(cols).fill(false));
+let active = new Set();
+let new_active = new Set();
 
 window.onload = init;
 
@@ -83,17 +80,12 @@ function draw() {
     ctx.lineTo(lower_right.x, j);
     ctx.stroke();
   }
-  const min_i = Math.max(0, Math.floor(upper_left.x));
-  const max_i = Math.min(rows, Math.ceil(lower_right.x));
-  const min_j = Math.max(0, Math.floor(upper_left.y));
-  const max_j = Math.min(cols, Math.ceil(lower_right.y));
-  for (let i = min_i; i < max_i; i++) {
-    for (let j = min_j; j < max_j; j++) {
-      if (grid[i][j]) {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(i, j, 1, 1);
-      }
-    }
+  ctx.fillStyle = 'white';
+  for (const point of active) {
+    const parts = point.split(',');
+    const x = Number(parts[0]);
+    const y = Number(parts[1]);
+    ctx.fillRect(x, y, 1, 1);
   }
 }
 
@@ -130,24 +122,36 @@ function changeViewport() {
 function step() {
   step_count++;
 
-  // Compute the number of alive neighbors for each cell
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      let neighbors = 0;
-      for (let row = Math.max(0, i - 1); row <= Math.min(rows - 1, i + 1); row++) {
-        for (let col = Math.max(0, j - 1); col <= Math.min(cols - 1, j + 1); col++) {
-          if (row === i && col === j) continue;
-          if (grid[row][col]) neighbors++;
-        }
-      }
-      if (grid[i][j]) {
-        new_grid[i][j] = neighbors >= 2 && neighbors <= 3;
-      } else {
-        new_grid[i][j] = neighbors === 3;
+  for (const point of active) {
+    const parts = point.split(',');
+    const x = Number(parts[0]);
+    const y = Number(parts[1]);
+    for (let dx = -1; dx <= 1; ++dx) {
+      for (let dy = -1; dy <= 1; ++dy) {
+        new_active.add(`${x + dx},${y + dy}`);
       }
     }
   }
-  [grid, new_grid] = [new_grid, grid];
+
+  for (const point of new_active) {
+    const parts = point.split(',');
+    const x = Number(parts[0]);
+    const y = Number(parts[1]);
+    let neighbors = 0;
+    for (let dx = -1; dx <= 1; ++dx) {
+      for (let dy = -1; dy <= 1; ++dy) {
+        if (dx === 0 && dy === 0) continue;
+        if (active.has(`${x + dx},${y + dy}`)) {
+          neighbors++;
+        }
+      }
+    }
+    if (!(neighbors === 3 || (active.has(point) && neighbors === 2))) {
+      new_active.delete(point);
+    }
+  }
+  [active, new_active] = [new_active, active];
+  new_active.clear();
 
   const now = performance.now();
   const time_diff = now - last_update;
@@ -157,7 +161,7 @@ function step() {
 
 var timer = {
   running: false,
-  delay: 200,
+  delay: 20,
   timeoutId: null,
   callback: function () { },
   start: function (callback, delay) {
@@ -199,8 +203,11 @@ onmouseup = (event) => {
     const pt = transformedPoint(event.offsetX, event.offsetY);
     const x = Math.floor(pt.x);
     const y = Math.floor(pt.y);
-    if (x >= 0 && x < rows && y >= 0 && y < cols) {
-      grid[x][y] = !grid[x][y];
+    const point = `${x},${y}`;
+    if (active.has(point)) {
+      active.delete(point);
+    } else {
+      active.add(point);
     }
   }
   mouse_down = false;
@@ -275,7 +282,8 @@ function loadRle(text) {
     } else if (ch == 'o') {
       const count = parseInt(num) || 1;
       for (let i = 0; i < count; i++) {
-        grid[offset + x++][offset + line_idx] = true;
+        const point = `${offset + x++},${offset + line_idx}`;
+        active.add(point);
       }
       num = ""
     } else if (ch == 'b') {
