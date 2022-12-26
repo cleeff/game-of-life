@@ -3,7 +3,7 @@
 let canvas;
 let ctx;
 let mouse_down = false;
-let base_unit = window.devicePixelRatio; // Screen pixel in canvas coordinates.
+let base_unit;
 let last_update = null;
 let ups = 0;
 let fps = 0;
@@ -122,8 +122,8 @@ function initView() {
   const cells_to_show = 100;
   const target_width = cells_to_show;
   const scale = target_width / canvas.width;
-  base_unit *= scale;
-  ctx.scale(1 / scale, 1 / scale);
+  base_unit = window.devicePixelRatio * scale; // Screen pixel in canvas coordinates.
+  ctx.setTransform(1 / scale, 0, 0, 1 / scale, 0, 0);
 }
 
 function changeViewport() {
@@ -277,7 +277,9 @@ onkeydown = (event) => {
   }
   else if (event.key === '.') {
     step();
-  }
+  } else if (event.key === '0') {
+    initView();
+  } 
 }
 
 function loadRle(text) {
