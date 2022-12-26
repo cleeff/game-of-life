@@ -1,20 +1,20 @@
 "use strict";
 
-let canvas;
-let ctx;
-let mouse_down = false;
-let base_unit;
-let last_update = null;
-let ups = 0;
-let fps = 0;
-let draw_last_update = null;
-let step_count = 0;
-const offset = 20;
-let active = new Set();
-let changed = new Set();
+let canvas; // canvas element
+let ctx; // 2d context
+let active = new Set(); // currently active coordinates 
+let changed = new Set(); // coordinates which changed since last iteration
 
-window.onload = init;
+let mouse_down = false; // is the left mouse button currently pushed down?
+let base_unit; // pixel to screen coordinates ratio
+let last_update = null; // timestamp of last step() update
+let last_frame_update = null; // timestamp of last draw() update
+let ups = 0; // updates per second, moving average using exponential smoothing
+let fps = 0; // frames per second, moving average using exponential smoothing
+let step_count = 0; // number of step() calls so far
+const offset = 20; // coordinate offset for loaded patterns
 
+/** Initialization when page is loaded. */
 function init() {
   canvas = document.getElementById("canvas");
   ctx = canvas.getContext("2d");
@@ -40,6 +40,7 @@ function init() {
     });
 }
 
+/** Draw loop which calls itself repeatedly. Has 60 fps on my test environment. */
 function gameLoop(time_stamp) {
   clear_view();
   draw_fps(time_stamp);
@@ -49,6 +50,7 @@ function gameLoop(time_stamp) {
   window.requestAnimationFrame(gameLoop);
 }
 
+/** Set the view to a black background. */
 function clear_view() {
   const upper_left = transformedPoint(0, 0);
   const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
@@ -61,16 +63,16 @@ function clear_view() {
   ctx.restore();
 }
 
+/** Draw FPS and other stats on fixed position on screen. */
 function draw_fps(time_stamp) {
-  // Draw FPS and other stats on fixed position on screen.
   const upper_left = transformedPoint(0, 0);
   const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.font = "80px monospace";
-  const draw_time_diff = time_stamp - draw_last_update;
-  draw_last_update = time_stamp;
+  const draw_time_diff = time_stamp - last_frame_update;
+  last_frame_update = time_stamp;
   fps = 0.9 * fps + 0.1 * 1000 / draw_time_diff;
   const steps = `${step_count} steps`.padStart(15);
   const ups_str = `${ups.toFixed(0)} UPS`.padStart(15);
@@ -80,6 +82,7 @@ function draw_fps(time_stamp) {
   ctx.restore();
 }
 
+/** Draw the world on canvas. */
 function draw() {
   const upper_left = transformedPoint(0, 0);
   const lower_right = transformedPoint(window.innerWidth, window.innerHeight);
@@ -113,11 +116,13 @@ function draw() {
   }
 }
 
+// pixel coordinates -> world coordinates
 function transformedPoint(x, y) {
   const originalPoint = new DOMPoint(x * window.devicePixelRatio, y * window.devicePixelRatio);
   return ctx.getTransform().invertSelf().transformPoint(originalPoint);
 }
 
+/** Initialize ctx transform and set the visible world section. */
 function initView() {
   const cells_to_show = 100;
   const target_width = cells_to_show;
@@ -126,6 +131,7 @@ function initView() {
   ctx.setTransform(1 / scale, 0, 0, 1 / scale, 0, 0);
 }
 
+/** Change the canvas dimensions because the user visible window has changed. */
 function changeViewport() {
   const transform = ctx.getTransform();
   // Set display size (css pixels).
@@ -143,6 +149,7 @@ function changeViewport() {
   ctx.setTransform(transform);
 }
 
+/** Advance the world by one time step. */
 function step() {
   step_count++;
   let candidates = new Set();
@@ -197,6 +204,7 @@ function step() {
   ups = 0.9 * ups + 0.1 * 1000 / time_diff;
 }
 
+/** Simple class which allows repeated function calls with changing delay. */
 var timer = {
   running: false,
   delay: 20,
@@ -224,6 +232,7 @@ var timer = {
   }
 };
 
+/** Mouse + Keyboard event handler. */
 onresize = (event) => {
   changeViewport();
 };
@@ -282,6 +291,7 @@ onkeydown = (event) => {
   } 
 }
 
+/** Load rle string and apply to world. */
 function loadRle(text) {
   const lines = text.split("\n");
   let width = null, height = null;
@@ -339,3 +349,5 @@ function loadRle(text) {
     }
   }
 }
+
+window.onload = init;
